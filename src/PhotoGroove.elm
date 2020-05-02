@@ -5,6 +5,7 @@ import Browser
 import Html exposing (Html, button, div, h1, h3, img, input, label, text)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Random
 
 
 
@@ -29,6 +30,7 @@ type Msg
     | ClickedSize ThumbnailSize
     | ClickedSurpriseMe
     | Checked ThumbnailSize
+    | GotSelectedIndex Int
 
 
 type alias Photo =
@@ -64,6 +66,9 @@ photoArray =
     Array.fromList initialModel.photos
 
 
+randomPhotoPicker : Random.Generator Int
+randomPhotoPicker =
+    Random.int 0 (Array.length photoArray - 1)
 
 -- view
 
@@ -101,13 +106,29 @@ viewSizeChooser model thumbnailSize =
         [ input
             [ type_ "radio"
             , name "size"
-            , onCheck (\booleanValue -> if booleanValue then Checked thumbnailSize else Checked model.choosenSize)
+            , onCheck
+                --(\booleanValue ->
+                --    if booleanValue then
+                --        Checked thumbnailSize
+                --
+                --    else
+                --        Checked model.choosenSize
+                --)
+                (setChecked model thumbnailSize)
+
             --, onClick (ClickedSize thumbnailSize)
-            , checked (if model.choosenSize == thumbnailSize then True else False)
+            , checked
+                (if model.choosenSize == thumbnailSize then
+                    True
+
+                 else
+                    False
+                )
             ]
             []
         , text (sizeToString thumbnailSize)
         ]
+
 
 sizeToString : ThumbnailSize -> String
 sizeToString size =
@@ -120,6 +141,15 @@ sizeToString size =
 
         Large ->
             "large"
+
+
+setChecked : Model -> ThumbnailSize -> Bool -> Msg
+setChecked model thumbnailSize ischecked =
+    if ischecked then
+        Checked thumbnailSize
+
+    else
+        Checked model.choosenSize
 
 
 
@@ -136,20 +166,24 @@ getPhotoUrl index =
             ""
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
         ClickedPhoto url ->
-            { model | selectedUrl = url }
+            ( { model | selectedUrl = url }, Cmd.none )
 
         ClickedSize size ->
-            { model | choosenSize = size }
+            ( { model | choosenSize = size }, Cmd.none )
 
         ClickedSurpriseMe ->
-            { model | selectedUrl = "2.jpeg" }
+            ( model, Random.generate GotSelectedIndex randomPhotoPicker )
 
         Checked size ->
-            { model | choosenSize = size }
+            ( { model | choosenSize = size }, Cmd.none )
+
+        GotSelectedIndex int ->
+            ( { model | selectedUrl = getPhotoUrl int}, Cmd.none )
+
 
 
 
@@ -163,10 +197,11 @@ update msg model =
 --    model
 -- main
 
-
+main : Program () Model Msg
 main =
-    Browser.sandbox
-        { init = initialModel
+    Browser.element
+        { init = \flags -> ( initialModel, Cmd.none )
         , view = view
         , update = update
+        , subscriptions = \model -> Sub.none
         }
